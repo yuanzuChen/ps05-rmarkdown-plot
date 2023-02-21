@@ -1,0 +1,250 @@
+---
+title: "ps5"
+author: "Yuanzu Chen"
+date: "2023-02-20"
+output: html_document
+---
+
+```{r library}
+library(dplyr)
+library(readr)
+library(ggplot2)
+```
+
+### Problem 1 loading data
+```{r loading data}
+gapminder <- read_delim("gapminder.csv")
+nrow(gapminder)
+ncol(gapminder)
+head(gapminder, 3)
+```
+
+### Problem 2 Descriptive statistics
+#### Part 1
+```{r countries}
+gapminder %>% 
+  summarize(countries = length(unique(name)), iso2codes = length(unique(iso2)), iso3codes = length(unique(iso3)))
+```
+#### Part 2a
+```{r missing iso2}
+gapminder %>% 
+  group_by(iso2) %>% 
+  summarise(count = length(unique(name)), countries = unique(name)) %>% 
+  arrange(desc(count))
+```
+
+Based on the data we get, Namibia is missing iso2 code
+
+
+#### part 2b
+```{r more iso3}
+gapminder %>% 
+  group_by(name) %>% 
+  summarise(counts = length(unique(iso3)), iso3code = unique(iso3)) %>% 
+  arrange(desc(counts))
+```
+Based on the data we get, there are 4 iso3 code that do not have a corresponding name for it, and i did some research online that NLD_CURACAO is a place in Netherlands, and KOS is a island of Greek.
+
+
+#### Part 3
+```{r minimum and maximum year}
+min(gapminder$time, na.rm = TRUE)
+max(gapminder$time, na.rm = TRUE)
+```
+The minimum year is 1960, and maximum year is 2019
+
+### Problem 3
+#### Part 1
+```{r CO2 emissions}
+nrow(gapminder[is.na(gapminder$co2) == TRUE,])
+nrow(gapminder[is.na(gapminder$co2_PC) == TRUE,])
+gapminder %>% 
+  filter(is.na(co2) == TRUE) %>% 
+  group_by(time) %>% 
+  summarise(missing_co2 = length(co2)) %>% 
+  arrange(missing_co2) %>% 
+  tail(1)
+gapminder %>% 
+  filter(is.na(co2_PC) == TRUE) %>% 
+  group_by(time) %>% 
+  summarise(missing_co2_PC = length(co2_PC)) %>% 
+  arrange(missing_co2_PC) %>% 
+  tail(1)
+```
+
+So there 2658 missing data in co2 category, and 2661 missing data in co2_PC category. 2019 has the most missing data for both co2 and co2_PC categories.
+
+#### Part 2
+```{r co2 plots}
+plot1 <- gapminder %>% 
+  filter(name == "China" | name == "United States of America" | name == "India" | name == "Germany" | name == "France" | name == "Russian Federation")
+ggplot(plot1, aes(time,
+                co2,
+                col = factor(name))) +
+  geom_line() +
+  geom_point()
+```
+
+From 1970, the emission of CO2 from China is gradually increase until around 2014, it started to decrease. The emission of France and India is very constant each year. The emission of US increase from 1960 to 1973, then it drops, increase again from 1975 to 1978, then drops again, then started to slowly increase from 1980 to 2005, then it started to drop again. The emission of Russia increase from 1960 to 1987, then decrease dramatically and stay constant from 1992 to 2019.
+
+#### Part 3
+```{r co2_PC plot}
+plot1 <- gapminder %>% 
+  filter(name == "China" | name == "United States of America" | name == "India" | name == "Germany" | name == "France" | name == "Russian Federation")
+ggplot(plot1, aes(time,
+                co2_PC,
+                col = factor(name))) +
+  geom_line() +
+  geom_point()
+
+```
+
+The pattern of China, US, Germany, and Russia does not change a lot, which suggest that there overall co2 emission have some relationship with their capita. But France and India is different, France increase from 1960 to 1973, and decrease from 1979 to 2019. Whereas India's capita decrease from 1991 to 2019.
+
+#### Part 4
+```{r co2_pc accross continent}
+co2_pc_accross_continent <- gapminder %>% 
+  filter(is.na(co2_PC) == FALSE) %>% 
+  filter(is.na(name)== FALSE)  %>% 
+  filter(is.na(region) == FALSE) %>% 
+  group_by(region, time) %>%
+  summarize(average= mean(co2_PC))
+co2_pc_accross_continent  
+```
+
+Asia and Europe have the highest co2 emission per capita, and Africa have the least average co2 emission per capita in 2016. But in 1960, Americas have the highest emission per capita
+
+#### Part 5
+```{r co2_pc accross continent plot}
+gapminder %>% 
+  filter(time %in% c(1960, 2016)) %>% 
+  filter(is.na(region) == FALSE) %>% 
+  filter(is.na(co2_PC) == FALSE) %>% 
+  filter(is.na(name) == FALSE) %>% 
+  group_by(region, time) %>% 
+  summarise(average_co2_PC = mean(co2_PC)) %>% 
+  ggplot(aes(region,
+             average_co2_PC,
+             fill = as.factor(time))) + 
+  geom_col(position = "dodge") + 
+  scale_fill_discrete("Year") +
+  labs(title = "co2_pc accross continent", x = "region", y = "average CO2 emission per capita")
+```
+
+#### Part 6
+```{r three largest, and three smallest CO2 emitters in each continent}
+gapminder %>% 
+  filter(time == 2016) %>% 
+  filter(is.na(region) == FALSE) %>% 
+  filter(is.na(co2_PC) == FALSE) %>% 
+  filter(is.na(name) == FALSE) %>% 
+  group_by(region) %>%
+  filter(rank(desc(co2_PC)) <= 3 | rank(co2_PC) <= 3) %>% 
+  select(name, co2_PC, region) %>% 
+  arrange(region)
+```
+
+
+
+### Problem4
+#### Part1
+```{r GPD_PC vs. lifeExpectancy 1960}
+gapminder %>% 
+  filter(is.na(GDP_PC) == FALSE) %>% 
+  filter(is.na(lifeExpectancy) == FALSE) %>% 
+  filter(time == 1960) %>% 
+  filter(is.na(name) == FALSE) %>% 
+  ggplot(aes(GDP_PC,
+             lifeExpectancy,
+             col = factor(region),
+             size = totalPopulation)) +
+  geom_point() +
+  labs(title = "GPD_PC vs. lifeExpectancy 1960", x = "GDP per capita", y = "Life Expectancy")
+```
+Based on the graph i get, the higher the GDP per capita, the higher the life expectancy will be.
+
+#### Part 2
+```{r GPD_PC vs. lifeExpectancy 2016}
+gapminder %>% 
+  filter(is.na(GDP_PC) == FALSE) %>% 
+  filter(is.na(lifeExpectancy) == FALSE) %>% 
+  filter(time == 2019) %>% 
+  filter(is.na(name) == FALSE) %>% 
+  ggplot(aes(GDP_PC,
+             lifeExpectancy,
+             col = factor(region),
+             size = totalPopulation)) +
+  geom_point() + 
+  labs(title = "GPD_PC vs. lifeExpectancy 2016", x = "GDP per capita", y = "Life Expectancy")
+```
+
+#### Part 3
+Comparing these 2 plots, the overall GPD and life expectancy have increased in 2016 compare with 1960. So people can earn more money and live more happily through the last 60 years.
+
+#### Part 4
+```{r average lifeExpectancy}
+gapminder %>% 
+  filter(is.na(lifeExpectancy) == FALSE) %>% 
+  filter(is.na(name)== FALSE)  %>% 
+  filter(is.na(region) == FALSE) %>% 
+  filter(time %in% c(1960, 2019)) %>% 
+  group_by(region, time) %>%
+  summarize(average= mean(lifeExpectancy))
+
+```
+
+The result fit what i see from the above 2 plots
+
+#### Part 5 
+```{r}
+gapminder %>% 
+  filter(is.na(lifeExpectancy) == FALSE) %>% 
+  filter(is.na(name)== FALSE)  %>% 
+  filter(is.na(region) == FALSE) %>% 
+  filter(time %in% c(1960, 2019)) %>% 
+  group_by(region, time) %>%
+  summarise(average = mean(lifeExpectancy)) %>% 
+  mutate(prev = lag(average, default = 0), growth = average - prev) %>% 
+  arrange(desc(growth))
+```
+The life expectancy for each continent have all increased over the past 60 years, and Asia and Africa are the 2 continents that increase the most.
+
+#### Part 6
+```{r GDP per capita for years of 1960 and 2019}
+gapminder %>% 
+  filter(time %in% c(1960, 2019)) %>% 
+  filter(is.na(GDP_PC) == FALSE) %>% 
+  ggplot(aes(GDP_PC,
+             fill = as.factor(time))) + 
+  geom_histogram(bins = 30, position = "dodge") + 
+  scale_fill_discrete("Year") + 
+  labs(title = "GDP per capita for years of 1960 and 2019", x = "GDP per capita", y = "count")
+```
+
+#### Part 7
+```{r US life expectancy ranking}
+gapminder %>% 
+  filter(time %in% c(1960, 2019)) %>% 
+  filter(is.na(name) == FALSE) %>% 
+  group_by(time) %>% 
+  mutate(ranking = rank(desc(lifeExpectancy))) %>% 
+  select(time, name, ranking) %>% 
+  filter(name == "United States of America")
+  
+```
+
+#### Part 8
+```{r US relative rank in life expectancy}
+gapminder %>% 
+  filter(time %in% c(1960, 2019)) %>% 
+  filter(is.na(name) == FALSE) %>% 
+  group_by(time) %>% 
+  mutate(ranking = rank(desc(lifeExpectancy))) %>% 
+  filter(is.na(lifeExpectancy) == FALSE) %>% 
+  mutate(relative_rank = ranking / length(unique(name))) %>% 
+  select(time, name, ranking, relative_rank) %>% 
+  filter(name == "United States of America")
+```
+
+#### Finally
+I worked on this assignment for about 5 hours
